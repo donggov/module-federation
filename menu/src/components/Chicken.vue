@@ -12,12 +12,12 @@
 </template>
 
 <script>
-import { ref } from "vue";
+import { defineComponent, reactive } from "vue";
 
-export default {
+export default defineComponent({
   name: "Chicken",
   setup() {
-    const menus = ref([
+    const menus = reactive([
       { name: "후라이드", price: 10000 },
       { name: "양념", price: 11000 },
       { name: "반반", price: 11000 },
@@ -25,5 +25,5 @@ export default {
 
     return { menus };
   },
-};
+});
 </script>
