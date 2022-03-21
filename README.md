@@ -65,7 +65,7 @@ App.vue
       </div>
     </div>
 
-    <div style="display: flex; height: 500px">
+    <div style="display: flex; height: 300px">
       <div class="menu">menu</div>
       <div class="basket">basket</div>
     </div>
@@ -165,3 +165,129 @@ export default defineComponent({
 </script>
 
 ```
+
+## Module Federation 세팅
+
+틀은 짰으니 이제 Module Federation을 이용하여 컴포넌트를 공유해보자. 공유하는 애플리케이션을 remote라 부르고 이것들 사용하는 곳을 host라고 부르기로 한다. 여기서 `app`이 host이고 `menu`, `basket` 모듈이 remote이다.
+
+먼저 host(app 모듈) 웹팩 설정을 해보자.
+
+```javascript
+publicPath: "http://localhost:8000",
+chainWebpack: (config) => {
+  config.optimization.delete("splitChunks");
+  config.plugin("module-federation-plugin").use(require("webpack").container.ModuleFederationPlugin, [
+    {
+      name: "app",
+      remotes: {
+        menu: "menu@http://localhost:8001/remoteEntry.js",
+        basket: "basket@http://localhost:8002/remoteEntry.js",
+      },
+      shared: require("./package.json").dependencies,
+    },
+  ]);
+},
+```
+
+- `name`에는 현재 모듈명을 적어준다. 다른 애플리케이션과 중복을 피해야한다.
+- `remotes`는 불러올 컨테이너의 경로이다.
+- `shared`는 의존성 공유를 어떻게 할지 정의하는 설정이다. 현재 사용하는 라이브러리들을 공유하기로한다.
+
+다음은 remote(menu, basket 모듈)의 웹팩 설정이다.
+
+```javascript
+// menu
+publicPath: "http://localhost:8001",
+chainWebpack: (config) => {
+  config.optimization.delete("splitChunks");
+  config.plugin("module-federation-plugin").use(require("webpack").container.ModuleFederationPlugin, [
+    {
+      name: "menu",
+      filename: "remoteEntry.js",
+      exposes: {
+        "./Chicken": "./src/components/Chicken.vue",
+      },
+      shared: require("./package.json").dependencies,
+    },
+  ]);
+},
+
+// basket
+publicPath: "http://localhost:8002",
+chainWebpack: (config) => {
+  config.optimization.delete("splitChunks");
+  config.plugin("module-federation-plugin").use(require("webpack").container.ModuleFederationPlugin, [
+    {
+      name: "basket",
+      filename: "remoteEntry.js",
+      exposes: {
+        "./Basket": "./src/components/Basket.vue",
+      },
+      shared: require("./package.json").dependencies,
+    },
+  ]);
+},
+```
+
+remote 설정을 하고나서 remoteEntry.js로 들어가보면 exposes한 컨테이너가 보이는걸 확인할 수 있다.
+
+![remoteEntry](./a-image/remoteEntry.png)
+
+## remote 불러오기
+
+module federation에서는 엔트리를 비동기로 가져오는 것을 추천하고있다. `bootstrap.js`를 생성하고 `main.js`에서 이 파일을 엔트리로 가져오게 변경한다.
+
+```javascript
+// bootstrap.js
+import { createApp } from "vue";
+import App from "./App.vue";
+createApp(App).mount("#app");
+
+// main.js
+import("./bootstrap");
+```
+
+그리고 `App.vue`에서는 remote가 떠있지 않을 수도 있기 때문에 `defineAsyncComponent`를 사용하여 비동기로 컨테이너를 불러와서 사용한다.
+
+```javascript
+<template>
+  <div>
+    <div>
+      <div style="border: solid; border-color: red; width: 700px">
+        <h1>Header</h1>
+      </div>
+    </div>
+
+    <div style="display: flex; height: 300px">
+      <div class="menu">
+        menu
+        <Chicken />
+      </div>
+      <div class="basket">
+        basket
+        <Basket />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { defineComponent, defineAsyncComponent } from "vue";
+
+export default defineComponent({
+  name: "App",
+  components: {
+    Chicken: defineAsyncComponent(() => import("menu/Chicken")),
+    Basket: defineAsyncComponent(() => import("basket/Basket")),
+  },
+});
+</script>
+```
+
+이제 아래처럼 메뉴와 장바구니 영역에 각 remote 컨테이너를 불러와서 렌더된다.
+
+![importRemote](./a-image/import.png)
+
+## 참고
+
+- https://webpack.kr/concepts/module-federation/

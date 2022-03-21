@@ -6,18 +6,28 @@
       </div>
     </div>
 
-    <div style="display: flex; height: 500px">
-      <div class="menu">menu</div>
-      <div class="basket">basket</div>
+    <div style="display: flex; height: 300px">
+      <div class="menu">
+        menu
+        <Chicken />
+      </div>
+      <div class="basket">
+        basket
+        <Basket />
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { defineComponent } from "vue";
+import { defineComponent, defineAsyncComponent } from "vue";
 
 export default defineComponent({
   name: "App",
+  components: {
+    Chicken: defineAsyncComponent(() => import("menu/Chicken")),
+    Basket: defineAsyncComponent(() => import("basket/Basket")),
+  },
 });
 </script>
 
