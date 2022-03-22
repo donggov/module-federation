@@ -5,7 +5,7 @@
     <ul>
       <li v-for="(menu, index) in menus" :key="index">
         {{ menu.name }} : {{ menu.price }}원
-        <button>담기</button>
+        <button @click="addMenu(menu)">담기</button>
       </li>
     </ul>
   </div>
@@ -13,6 +13,7 @@
 
 <script>
 import { defineComponent, reactive } from "vue";
+import { useStore } from "vuex";
 
 export default defineComponent({
   name: "Chicken",
@@ -23,7 +24,10 @@ export default defineComponent({
       { name: "반반", price: 11000 },
     ]);
 
-    return { menus };
+    const store = useStore();
+    const addMenu = ({ name, price }) => store.commit("addMenu", { name, price });
+
+    return { menus, addMenu };
   },
 });
 </script>

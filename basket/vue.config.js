@@ -12,6 +12,9 @@ module.exports = defineConfig({
       {
         name: "basket",
         filename: "remoteEntry.js",
+        remotes: {
+          main: "main@http://localhost:8000/remoteEntry.js",
+        },
         exposes: {
           "./Basket": "./src/components/Basket.vue",
         },

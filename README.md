@@ -284,9 +284,181 @@ export default defineComponent({
 </script>
 ```
 
-이제 아래처럼 메뉴와 장바구니 영역에 각 remote 컨테이너를 불러와서 렌더된다.
+이제 아래처럼 메뉴와 장바구니 영역에 각 remote 컨테이너들이 렌더된다.
 
 ![importRemote](./a-image/import.png)
+
+## vuex 상태 공유하기
+
+모듈간 상태를 공유해보자. `app` 모듈에 상태를 정의하고 `menu`와 `basket` 모듈에서 상태를 공유하는 방식으로 해보자. (실습용 모델이며 실제 서비스에서는 설계하기 나름이다.)
+
+먼저 각 모듈에 vuex를 설치
+
+```
+yarn add vuex
+```
+
+`app` 모듈에 스토어 설정을 한다.
+
+store/index.js
+
+```javascript
+import { createStore } from "vuex";
+import basket from "./modules/basket";
+
+export default createStore({
+  modules: {
+    basket,
+  },
+});
+
+export { basket };
+```
+
+공유하여 사용하기 편하도록 스토어를 모듈화하였다. (namespace는 패스)
+
+store/modules/basket.js
+
+```javascript
+export default {
+  state: () => ({
+    menus: [],
+  }),
+  mutations: {
+    addMenu(state, value) {
+      state.menus.push(value);
+    },
+  },
+  getters: {
+    menus(state) {
+      return state.menus;
+    },
+    totalPrice(state) {
+      return state.menus.reduce((sum, value) => sum + value.price, 0);
+    },
+  },
+};
+```
+
+- `menus` : 장바구니에 담긴 메뉴들
+- `addMenus` : 메뉴 추가
+- `totalPrice` : 총 가격
+
+bootstrap.js
+
+```javascript
+import store from "./store";
+createApp(App).use(store).mount("#app");
+```
+
+이제 스토어를 다른 모듈들에서 사용할 수 있도록 exposes 설정한다.
+
+```javascript
+config.plugin("module-federation-plugin").use(require("webpack").container.ModuleFederationPlugin, [
+  {
+    name: "main",
+    filename: "remoteEntry.js",
+    remotes: {
+      menu: "menu@http://localhost:8001/remoteEntry.js",
+      basket: "basket@http://localhost:8002/remoteEntry.js",
+    },
+    exposes: {
+      "./Store": "./src/store/modules/basket",
+    },
+    shared: require("./package.json").dependencies,
+  },
+]);
+```
+
+이제 각 모듈에서 이 스토어를 가져다가 사용하면된다. remotes에 `app` 모듈을 등록
+
+```javascript
+remotes: {
+  main: "main@http://localhost:8000/remoteEntry.js",
+},
+```
+
+각 `store/index.js`에 remote의 Store 등록
+
+```javascript
+import { createStore } from "vuex";
+import basket from "main/Store";
+
+export default createStore({
+  modules: {
+    basket,
+  },
+});
+```
+
+`menu` 모듈의 Chicken.vue 컴포넌트에는 장바구니 담기 addMenu를 붙이고
+
+```javascript
+<template>
+  <div>
+    <h2>메뉴</h2>
+    <h3>치킨</h3>
+    <ul>
+      <li v-for="(menu, index) in menus" :key="index">
+        {{ menu.name }} : {{ menu.price }}원
+        <button @click="addMenu(menu)">담기</button>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import { defineComponent, reactive } from "vue";
+import { useStore } from "vuex";
+
+export default defineComponent({
+  name: "Chicken",
+  setup() {
+    const menus = reactive([
+      { name: "후라이드", price: 10000 },
+      { name: "양념", price: 11000 },
+      { name: "반반", price: 11000 },
+    ]);
+
+    const store = useStore();
+    const addMenu = ({ name, price }) => store.commit("addMenu", { name, price });
+
+    return { menus, addMenu };
+  },
+});
+</script>
+```
+
+`basket` 모듈의 Basket.vue 컴포넌트에서는 불러와서 출력을 한다.
+
+```javascript
+<template>
+  <div>
+    <h2>장바구니</h2>
+    <ul>
+      <li v-for="(menu, index) in menus" :key="index">{{ menu.name }} : {{ menu.price }}</li>
+    </ul>
+    <h3>총 : {{ totalPrice }}</h3>
+  </div>
+</template>
+
+<script>
+import { defineComponent, computed } from "vue";
+import { useStore } from "vuex";
+
+export default defineComponent({
+  name: "Basket",
+  setup() {
+    const store = useStore();
+    const menus = computed(() => store.getters.menus);
+    const totalPrice = computed(() => store.getters.totalPrice);
+
+    return { menus, totalPrice };
+  },
+});
+</script>
+
+```
 
 ## 참고
 

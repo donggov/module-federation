@@ -12,6 +12,9 @@ module.exports = defineConfig({
       {
         name: "menu",
         filename: "remoteEntry.js",
+        remotes: {
+          main: "main@http://localhost:8000/remoteEntry.js",
+        },
         exposes: {
           "./Chicken": "./src/components/Chicken.vue",
         },

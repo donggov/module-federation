@@ -2,17 +2,24 @@
   <div>
     <h2>장바구니</h2>
     <ul>
-      <li>후라이드 : 10000원</li>
-      <li>양념 : 11000원</li>
+      <li v-for="(menu, index) in menus" :key="index">{{ menu.name }} : {{ menu.price }}</li>
     </ul>
-    <h3>총 : 21000원</h3>
+    <h3>총 : {{ totalPrice }}</h3>
   </div>
 </template>
 
 <script>
-import { defineComponent } from "vue";
+import { defineComponent, computed } from "vue";
+import { useStore } from "vuex";
 
 export default defineComponent({
   name: "Basket",
+  setup() {
+    const store = useStore();
+    const menus = computed(() => store.getters.menus);
+    const totalPrice = computed(() => store.getters.totalPrice);
+
+    return { menus, totalPrice };
+  },
 });
 </script>
